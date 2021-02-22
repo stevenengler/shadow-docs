@@ -268,36 +268,14 @@
 <span id="265">265</span>
 <span id="266">266</span>
 <span id="267">267</span>
-<span id="268">268</span>
-<span id="269">269</span>
-<span id="270">270</span>
-<span id="271">271</span>
-<span id="272">272</span>
-<span id="273">273</span>
-<span id="274">274</span>
-<span id="275">275</span>
-<span id="276">276</span>
-<span id="277">277</span>
-<span id="278">278</span>
-<span id="279">279</span>
-<span id="280">280</span>
-<span id="281">281</span>
-<span id="282">282</span>
-<span id="283">283</span>
-<span id="284">284</span>
-<span id="285">285</span>
-<span id="286">286</span>
-<span id="287">287</span>
-<span id="288">288</span>
-<span id="289">289</span>
-<span id="290">290</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">atomic_refcell</span>::<span class="ident">AtomicRefCell</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">cshadow</span> <span class="kw">as</span> <span class="ident">c</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">host</span>::<span class="ident">descriptor</span>::{
-    <span class="ident">FileFlags</span>, <span class="ident">FileMode</span>, <span class="ident">NewStatusListenerFilter</span>, <span class="ident">PosixFile</span>, <span class="ident">StatusEventSource</span>, <span class="ident">SyscallReturn</span>,
+    <span class="ident">FileFlags</span>, <span class="ident">FileMode</span>, <span class="ident">FileStatus</span>, <span class="ident">NewStatusListenerFilter</span>, <span class="ident">PosixFile</span>, <span class="ident">StatusEventSource</span>,
+    <span class="ident">SyscallReturn</span>,
 };
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">utility</span>::<span class="ident">byte_queue</span>::<span class="ident">ByteQueue</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">utility</span>::<span class="ident">event_queue</span>::{<span class="ident">EventQueue</span>, <span class="ident">Handle</span>};
@@ -305,10 +283,10 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PipeFile</span> {
     <span class="ident">buffer</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicRefCell</span><span class="op">&lt;</span><span class="ident">SharedBuf</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">event_source</span>: <span class="ident">StatusEventSource</span>,
-    <span class="ident">status</span>: <span class="ident">c</span>::<span class="ident">Status</span>,
+    <span class="ident">status</span>: <span class="ident">FileStatus</span>,
     <span class="ident">mode</span>: <span class="ident">FileMode</span>,
     <span class="ident">flags</span>: <span class="ident">FileFlags</span>,
-    <span class="ident">buffer_event_handle</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Handle</span><span class="op">&lt;</span>(<span class="ident">c</span>::<span class="ident">Status</span>, <span class="ident">c</span>::<span class="ident">Status</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">buffer_event_handle</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Handle</span><span class="op">&lt;</span>(<span class="ident">FileStatus</span>, <span class="ident">FileStatus</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">PipeFile</span> {
@@ -316,7 +294,7 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rv</span> <span class="op">=</span> <span class="self">Self</span> {
             <span class="ident">buffer</span>,
             <span class="ident">event_source</span>: <span class="ident">StatusEventSource</span>::<span class="ident">new</span>(),
-            <span class="ident">status</span>: <span class="ident">c</span>::<span class="ident">_Status_STATUS_NONE</span>,
+            <span class="ident">status</span>: <span class="ident">FileStatus</span>::<span class="ident">empty</span>(),
             <span class="ident">mode</span>,
             <span class="ident">flags</span>,
             <span class="ident">buffer_event_handle</span>: <span class="prelude-val">None</span>,
@@ -341,10 +319,7 @@
             <span class="kw">return</span> <span class="ident">SyscallReturn</span>::<span class="ident">Error</span>(<span class="ident">nix</span>::<span class="ident">errno</span>::<span class="ident">Errno</span>::<span class="ident">EBADF</span>);
         }
 
-        <span class="kw">let</span> <span class="ident">num_read</span> <span class="op">=</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">borrow_mut</span>();
-            <span class="ident">buffer</span>.<span class="ident">read</span>(<span class="ident">bytes</span>, <span class="ident">event_queue</span>)
-        };
+        <span class="kw">let</span> <span class="ident">num_read</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">borrow_mut</span>().<span class="ident">read</span>(<span class="ident">bytes</span>, <span class="ident">event_queue</span>);
 
         <span class="ident">SyscallReturn</span>::<span class="ident">Success</span>(<span class="ident">num_read</span> <span class="kw">as</span> <span class="ident">i32</span>)
     }
@@ -355,25 +330,20 @@
             <span class="kw">return</span> <span class="ident">SyscallReturn</span>::<span class="ident">Error</span>(<span class="ident">nix</span>::<span class="ident">errno</span>::<span class="ident">Errno</span>::<span class="ident">EBADF</span>);
         }
 
-        <span class="kw">let</span> <span class="ident">count</span> <span class="op">=</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">borrow_mut</span>();
-            <span class="ident">buffer</span>.<span class="ident">write</span>(<span class="ident">bytes</span>, <span class="ident">event_queue</span>)
-        };
+        <span class="kw">let</span> <span class="ident">num_written</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">borrow_mut</span>().<span class="ident">write</span>(<span class="ident">bytes</span>, <span class="ident">event_queue</span>);
 
         <span class="comment">// the write would block if we could not write any bytes, but were asked to</span>
-        <span class="kw">if</span> <span class="ident">count</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> <span class="op">&amp;&amp;</span> <span class="ident">bytes</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">0</span> {
+        <span class="kw">if</span> <span class="ident">num_written</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> <span class="op">&amp;&amp;</span> <span class="ident">bytes</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">0</span> {
             <span class="ident">SyscallReturn</span>::<span class="ident">Error</span>(<span class="ident">nix</span>::<span class="ident">errno</span>::<span class="ident">EWOULDBLOCK</span>)
         } <span class="kw">else</span> {
-            <span class="ident">SyscallReturn</span>::<span class="ident">Success</span>(<span class="ident">count</span> <span class="kw">as</span> <span class="ident">i32</span>)
+            <span class="ident">SyscallReturn</span>::<span class="ident">Success</span>(<span class="ident">num_written</span> <span class="kw">as</span> <span class="ident">i32</span>)
         }
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">enable_notifications</span>(<span class="ident">arc</span>: <span class="kw-2">&amp;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicRefCell</span><span class="op">&lt;</span><span class="ident">PosixFile</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
         <span class="comment">// we remove some of these later in this function</span>
-        <span class="kw">let</span> <span class="ident">monitoring</span> <span class="op">=</span> <span class="ident">c</span>::<span class="ident">_Status_STATUS_DESCRIPTOR_ACTIVE</span>
-            <span class="op">|</span> <span class="ident">c</span>::<span class="ident">_Status_STATUS_DESCRIPTOR_CLOSED</span>
-            <span class="op">|</span> <span class="ident">c</span>::<span class="ident">_Status_STATUS_DESCRIPTOR_READABLE</span>
-            <span class="op">|</span> <span class="ident">c</span>::<span class="ident">_Status_STATUS_DESCRIPTOR_WRITABLE</span>;
+        <span class="kw">let</span> <span class="ident">monitoring</span> <span class="op">=</span>
+            <span class="ident">FileStatus</span>::<span class="ident">ACTIVE</span> <span class="op">|</span> <span class="ident">FileStatus</span>::<span class="ident">CLOSED</span> <span class="op">|</span> <span class="ident">FileStatus</span>::<span class="ident">READABLE</span> <span class="op">|</span> <span class="ident">FileStatus</span>::<span class="ident">WRITABLE</span>;
 
         <span class="kw">let</span> <span class="ident">weak</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">downgrade</span>(<span class="ident">arc</span>);
         <span class="kw">match</span> <span class="kw-2">*</span><span class="ident">arc</span>.<span class="ident">borrow_mut</span>() {
@@ -406,10 +376,10 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_listener</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">monitoring</span>: <span class="ident">c</span>::<span class="ident">Status</span>,
+        <span class="ident">monitoring</span>: <span class="ident">FileStatus</span>,
         <span class="ident">filter</span>: <span class="ident">NewStatusListenerFilter</span>,
-        <span class="ident">notify_fn</span>: <span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">c</span>::<span class="ident">Status</span>, <span class="ident">c</span>::<span class="ident">Status</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EventQueue</span>) <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Handle</span><span class="op">&lt;</span>(<span class="ident">c</span>::<span class="ident">Status</span>, <span class="ident">c</span>::<span class="ident">Status</span>)<span class="op">&gt;</span> {
+        <span class="ident">notify_fn</span>: <span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">FileStatus</span>, <span class="ident">FileStatus</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EventQueue</span>) <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Handle</span><span class="op">&lt;</span>(<span class="ident">FileStatus</span>, <span class="ident">FileStatus</span>)<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">event_source</span>
             .<span class="ident">add_listener</span>(<span class="ident">monitoring</span>, <span class="ident">filter</span>, <span class="ident">notify_fn</span>)
     }
@@ -422,21 +392,19 @@
         <span class="self">self</span>.<span class="ident">event_source</span>.<span class="ident">remove_legacy_listener</span>(<span class="ident">ptr</span>);
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">status</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">c</span>::<span class="ident">Status</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">status</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FileStatus</span> {
         <span class="self">self</span>.<span class="ident">status</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">filter_status</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">status</span>: <span class="ident">c</span>::<span class="ident">Status</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">c</span>::<span class="ident">Status</span> {
-        <span class="comment">// if not open for reading</span>
+    <span class="kw">fn</span> <span class="ident">filter_status</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">status</span>: <span class="ident">FileStatus</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FileStatus</span> {
+        <span class="comment">// if not open for reading, remove the readable flag</span>
         <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">mode</span>.<span class="ident">contains</span>(<span class="ident">FileMode</span>::<span class="ident">READ</span>) {
-            <span class="comment">// remove the readable flag</span>
-            <span class="ident">status</span> <span class="op">&amp;=</span> <span class="op">!</span><span class="ident">c</span>::<span class="ident">_Status_STATUS_DESCRIPTOR_READABLE</span>;
+            <span class="ident">status</span>.<span class="ident">remove</span>(<span class="ident">FileStatus</span>::<span class="ident">READABLE</span>);
         }
 
-        <span class="comment">// if not open for writing</span>
+        <span class="comment">// if not open for writing, remove the writable flag</span>
         <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">mode</span>.<span class="ident">contains</span>(<span class="ident">FileMode</span>::<span class="ident">WRITE</span>) {
-            <span class="comment">// remove the writable flag</span>
-            <span class="ident">status</span> <span class="op">&amp;=</span> <span class="op">!</span><span class="ident">c</span>::<span class="ident">_Status_STATUS_DESCRIPTOR_WRITABLE</span>;
+            <span class="ident">status</span>.<span class="ident">remove</span>(<span class="ident">FileStatus</span>::<span class="ident">WRITABLE</span>);
         }
 
         <span class="ident">status</span>
@@ -444,7 +412,7 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">adjust_status</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">status</span>: <span class="ident">c</span>::<span class="ident">Status</span>,
+        <span class="ident">status</span>: <span class="ident">FileStatus</span>,
         <span class="ident">do_set_bits</span>: <span class="ident">bool</span>,
         <span class="ident">event_queue</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EventQueue</span>,
     ) {
@@ -453,20 +421,17 @@
         <span class="comment">// remove any flags that aren&#39;t relevant</span>
         <span class="kw">let</span> <span class="ident">status</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">filter_status</span>(<span class="ident">status</span>);
 
-        <span class="kw">if</span> <span class="ident">do_set_bits</span> {
-            <span class="self">self</span>.<span class="ident">status</span> <span class="op">|</span><span class="op">=</span> <span class="ident">status</span>;
-        } <span class="kw">else</span> {
-            <span class="self">self</span>.<span class="ident">status</span> <span class="op">&amp;=</span> <span class="op">!</span><span class="ident">status</span>;
-        }
+        <span class="comment">// add or remove the flags</span>
+        <span class="self">self</span>.<span class="ident">status</span>.<span class="ident">set</span>(<span class="ident">status</span>, <span class="ident">do_set_bits</span>);
 
         <span class="self">self</span>.<span class="ident">handle_status_change</span>(<span class="ident">old_status</span>, <span class="ident">event_queue</span>);
     }
 
-    <span class="kw">fn</span> <span class="ident">handle_status_change</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">old_status</span>: <span class="ident">c</span>::<span class="ident">Status</span>, <span class="ident">event_queue</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EventQueue</span>) {
+    <span class="kw">fn</span> <span class="ident">handle_status_change</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">old_status</span>: <span class="ident">FileStatus</span>, <span class="ident">event_queue</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EventQueue</span>) {
         <span class="kw">let</span> <span class="ident">statuses_changed</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">status</span> <span class="op">^</span> <span class="ident">old_status</span>;
 
         <span class="comment">// if nothing changed</span>
-        <span class="kw">if</span> <span class="ident">statuses_changed</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+        <span class="kw">if</span> <span class="ident">statuses_changed</span>.<span class="ident">is_empty</span>() {
             <span class="kw">return</span>;
         }
 
@@ -478,7 +443,7 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SharedBuf</span> {
     <span class="ident">queue</span>: <span class="ident">ByteQueue</span>,
     <span class="ident">max_len</span>: <span class="ident">usize</span>,
-    <span class="ident">status</span>: <span class="ident">c</span>::<span class="ident">Status</span>,
+    <span class="ident">status</span>: <span class="ident">FileStatus</span>,
     <span class="ident">event_source</span>: <span class="ident">StatusEventSource</span>,
 }
 
@@ -487,7 +452,7 @@
         <span class="self">Self</span> {
             <span class="ident">queue</span>: <span class="ident">ByteQueue</span>::<span class="ident">new</span>(<span class="number">8192</span>),
             <span class="ident">max_len</span>: <span class="ident">c</span>::<span class="ident">CONFIG_PIPE_BUFFER_SIZE</span> <span class="kw">as</span> <span class="ident">usize</span>,
-            <span class="ident">status</span>: <span class="ident">c</span>::<span class="ident">_Status_STATUS_DESCRIPTOR_ACTIVE</span> <span class="op">|</span> <span class="ident">c</span>::<span class="ident">_Status_STATUS_DESCRIPTOR_WRITABLE</span>,
+            <span class="ident">status</span>: <span class="ident">FileStatus</span>::<span class="ident">ACTIVE</span> <span class="op">|</span> <span class="ident">FileStatus</span>::<span class="ident">WRITABLE</span>,
             <span class="ident">event_source</span>: <span class="ident">StatusEventSource</span>::<span class="ident">new</span>(),
         }
     }
@@ -504,15 +469,11 @@
         <span class="kw">let</span> <span class="ident">num</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">queue</span>.<span class="ident">pop</span>(<span class="ident">bytes</span>);
 
         <span class="comment">// readable if not empty</span>
-        <span class="self">self</span>.<span class="ident">adjust_status</span>(
-            <span class="ident">c</span>::<span class="ident">_Status_STATUS_DESCRIPTOR_READABLE</span>,
-            <span class="op">!</span><span class="self">self</span>.<span class="ident">is_empty</span>(),
-            <span class="ident">event_queue</span>,
-        );
+        <span class="self">self</span>.<span class="ident">adjust_status</span>(<span class="ident">FileStatus</span>::<span class="ident">READABLE</span>, <span class="op">!</span><span class="self">self</span>.<span class="ident">is_empty</span>(), <span class="ident">event_queue</span>);
 
         <span class="comment">// writable if space is available</span>
         <span class="self">self</span>.<span class="ident">adjust_status</span>(
-            <span class="ident">c</span>::<span class="ident">_Status_STATUS_DESCRIPTOR_WRITABLE</span>,
+            <span class="ident">FileStatus</span>::<span class="ident">WRITABLE</span>,
             <span class="self">self</span>.<span class="ident">space_available</span>() <span class="op">&gt;</span> <span class="number">0</span>,
             <span class="ident">event_queue</span>,
         );
@@ -525,13 +486,9 @@
         <span class="kw">let</span> <span class="ident">writable</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">bytes</span>[..<span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">min</span>(<span class="ident">bytes</span>.<span class="ident">len</span>(), <span class="ident">available</span>)];
         <span class="self">self</span>.<span class="ident">queue</span>.<span class="ident">push</span>(<span class="ident">writable</span>);
 
+        <span class="self">self</span>.<span class="ident">adjust_status</span>(<span class="ident">FileStatus</span>::<span class="ident">READABLE</span>, <span class="op">!</span><span class="self">self</span>.<span class="ident">is_empty</span>(), <span class="ident">event_queue</span>);
         <span class="self">self</span>.<span class="ident">adjust_status</span>(
-            <span class="ident">c</span>::<span class="ident">_Status_STATUS_DESCRIPTOR_READABLE</span>,
-            <span class="op">!</span><span class="self">self</span>.<span class="ident">is_empty</span>(),
-            <span class="ident">event_queue</span>,
-        );
-        <span class="self">self</span>.<span class="ident">adjust_status</span>(
-            <span class="ident">c</span>::<span class="ident">_Status_STATUS_DESCRIPTOR_WRITABLE</span>,
+            <span class="ident">FileStatus</span>::<span class="ident">WRITABLE</span>,
             <span class="self">self</span>.<span class="ident">space_available</span>() <span class="op">&gt;</span> <span class="number">0</span>,
             <span class="ident">event_queue</span>,
         );
@@ -541,40 +498,37 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_listener</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">monitoring</span>: <span class="ident">c</span>::<span class="ident">Status</span>,
+        <span class="ident">monitoring</span>: <span class="ident">FileStatus</span>,
         <span class="ident">filter</span>: <span class="ident">NewStatusListenerFilter</span>,
-        <span class="ident">notify_fn</span>: <span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">c</span>::<span class="ident">Status</span>, <span class="ident">c</span>::<span class="ident">Status</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EventQueue</span>) <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Handle</span><span class="op">&lt;</span>(<span class="ident">c</span>::<span class="ident">Status</span>, <span class="ident">c</span>::<span class="ident">Status</span>)<span class="op">&gt;</span> {
+        <span class="ident">notify_fn</span>: <span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">FileStatus</span>, <span class="ident">FileStatus</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EventQueue</span>) <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Handle</span><span class="op">&lt;</span>(<span class="ident">FileStatus</span>, <span class="ident">FileStatus</span>)<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">event_source</span>
             .<span class="ident">add_listener</span>(<span class="ident">monitoring</span>, <span class="ident">filter</span>, <span class="ident">notify_fn</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">status</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">c</span>::<span class="ident">Status</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">status</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FileStatus</span> {
         <span class="self">self</span>.<span class="ident">status</span>
     }
 
     <span class="kw">fn</span> <span class="ident">adjust_status</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">status</span>: <span class="ident">c</span>::<span class="ident">Status</span>,
+        <span class="ident">status</span>: <span class="ident">FileStatus</span>,
         <span class="ident">do_set_bits</span>: <span class="ident">bool</span>,
         <span class="ident">event_queue</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EventQueue</span>,
     ) {
         <span class="kw">let</span> <span class="ident">old_status</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">status</span>;
 
-        <span class="kw">if</span> <span class="ident">do_set_bits</span> {
-            <span class="self">self</span>.<span class="ident">status</span> <span class="op">|</span><span class="op">=</span> <span class="ident">status</span>;
-        } <span class="kw">else</span> {
-            <span class="self">self</span>.<span class="ident">status</span> <span class="op">&amp;=</span> <span class="op">!</span><span class="ident">status</span>;
-        }
+        <span class="comment">// add or remove the flags</span>
+        <span class="self">self</span>.<span class="ident">status</span>.<span class="ident">set</span>(<span class="ident">status</span>, <span class="ident">do_set_bits</span>);
 
         <span class="self">self</span>.<span class="ident">handle_status_change</span>(<span class="ident">old_status</span>, <span class="ident">event_queue</span>);
     }
 
-    <span class="kw">fn</span> <span class="ident">handle_status_change</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">old_status</span>: <span class="ident">c</span>::<span class="ident">Status</span>, <span class="ident">event_queue</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EventQueue</span>) {
+    <span class="kw">fn</span> <span class="ident">handle_status_change</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">old_status</span>: <span class="ident">FileStatus</span>, <span class="ident">event_queue</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EventQueue</span>) {
         <span class="kw">let</span> <span class="ident">statuses_changed</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">status</span> <span class="op">^</span> <span class="ident">old_status</span>;
 
         <span class="comment">// if nothing changed</span>
-        <span class="kw">if</span> <span class="ident">statuses_changed</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+        <span class="kw">if</span> <span class="ident">statuses_changed</span>.<span class="ident">is_empty</span>() {
             <span class="kw">return</span>;
         }
 

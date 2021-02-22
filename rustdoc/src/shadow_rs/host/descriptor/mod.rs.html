@@ -467,6 +467,53 @@
 <span id="464">464</span>
 <span id="465">465</span>
 <span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">atomic_refcell</span>::<span class="ident">AtomicRefCell</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
@@ -508,6 +555,25 @@
     <span class="ident">Error</span>(<span class="ident">nix</span>::<span class="ident">errno</span>::<span class="ident">Errno</span>),
 }
 
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">SyscallReturn</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">c</span>::<span class="ident">SysCallReturn</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">syscall_return</span>: <span class="ident">SyscallReturn</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="kw">match</span> <span class="ident">syscall_return</span> {
+            <span class="ident">SyscallReturn</span>::<span class="ident">Success</span>(<span class="ident">x</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="self">Self</span> {
+                <span class="ident">state</span>: <span class="ident">c</span>::<span class="ident">SysCallReturnState_SYSCALL_DONE</span>,
+                <span class="ident">retval</span>: <span class="ident">c</span>::<span class="ident">SysCallReg</span> { <span class="ident">as_i64</span>: <span class="ident">x</span> <span class="kw">as</span> <span class="ident">i64</span> },
+                <span class="ident">cond</span>: <span class="ident">std</span>::<span class="ident">ptr</span>::<span class="ident">null_mut</span>(),
+            },
+            <span class="ident">SyscallReturn</span>::<span class="ident">Error</span>(<span class="ident">errno</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="self">Self</span> {
+                <span class="ident">state</span>: <span class="ident">c</span>::<span class="ident">SysCallReturnState_SYSCALL_DONE</span>,
+                <span class="ident">retval</span>: <span class="ident">c</span>::<span class="ident">SysCallReg</span> {
+                    <span class="ident">as_i64</span>: <span class="op">-</span>(<span class="ident">errno</span> <span class="kw">as</span> <span class="ident">i64</span>),
+                },
+                <span class="ident">cond</span>: <span class="ident">std</span>::<span class="ident">ptr</span>::<span class="ident">null_mut</span>(),
+            },
+        }
+    }
+}
+
 <span class="ident">bitflags</span>::<span class="macro">bitflags</span><span class="macro">!</span> {
     <span class="doccomment">/// These are flags that can potentially be changed from the plugin (analagous to the Linux</span>
     <span class="doccomment">/// `filp-&gt;f_flags` status flags). Not all `O_` flags are valid here. For example file access</span>
@@ -533,6 +599,35 @@
     <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">FileMode</span>: <span class="ident">u32</span> {
         <span class="kw">const</span> <span class="ident">READ</span> <span class="op">=</span> <span class="number">0b00000001</span>;
         <span class="kw">const</span> <span class="ident">WRITE</span> <span class="op">=</span> <span class="number">0b00000010</span>;
+    }
+}
+
+<span class="ident">bitflags</span>::<span class="macro">bitflags</span><span class="macro">!</span> {
+    <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">FileStatus</span>: <span class="ident">libc</span>::<span class="ident">c_int</span> {
+        <span class="doccomment">/// Has been initialized and it is now OK to unblock any plugin waiting</span>
+        <span class="doccomment">/// on a particular status.</span>
+        <span class="kw">const</span> <span class="ident">ACTIVE</span> <span class="op">=</span> <span class="ident">c</span>::<span class="ident">_Status_STATUS_DESCRIPTOR_ACTIVE</span>;
+        <span class="doccomment">/// Can be read, i.e. there is data waiting for user.</span>
+        <span class="kw">const</span> <span class="ident">READABLE</span> <span class="op">=</span> <span class="ident">c</span>::<span class="ident">_Status_STATUS_DESCRIPTOR_READABLE</span>;
+        <span class="doccomment">/// Can be written, i.e. there is available buffer space.</span>
+        <span class="kw">const</span> <span class="ident">WRITABLE</span> <span class="op">=</span> <span class="ident">c</span>::<span class="ident">_Status_STATUS_DESCRIPTOR_WRITABLE</span>;
+        <span class="doccomment">/// User already called close.</span>
+        <span class="kw">const</span> <span class="ident">CLOSED</span> <span class="op">=</span> <span class="ident">c</span>::<span class="ident">_Status_STATUS_DESCRIPTOR_CLOSED</span>;
+        <span class="doccomment">/// A wakeup operation occurred on a futex.</span>
+        <span class="kw">const</span> <span class="ident">FUTEX_WAKEUP</span> <span class="op">=</span> <span class="ident">c</span>::<span class="ident">_Status_STATUS_FUTEX_WAKEUP</span>;
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">c</span>::<span class="ident">Status</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">FileStatus</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">status</span>: <span class="ident">c</span>::<span class="ident">Status</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="comment">// if any unexpected bits were present, then it&#39;s an error</span>
+        <span class="self">Self</span>::<span class="ident">from_bits</span>(<span class="ident">status</span>).<span class="ident">unwrap</span>()
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">FileStatus</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">c</span>::<span class="ident">Status</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">status</span>: <span class="ident">FileStatus</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="ident">status</span>.<span class="ident">bits</span>()
     }
 }
 
@@ -568,7 +663,7 @@
 
 <span class="doccomment">/// Stores event listener handles so that `c::StatusListener` objects can subscribe to events.</span>
 <span class="kw">struct</span> <span class="ident">LegacyListenerHelper</span> {
-    <span class="ident">handle_map</span>: <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">usize</span>, <span class="ident">Handle</span><span class="op">&lt;</span>(<span class="ident">c</span>::<span class="ident">Status</span>, <span class="ident">c</span>::<span class="ident">Status</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">handle_map</span>: <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">usize</span>, <span class="ident">Handle</span><span class="op">&lt;</span>(<span class="ident">FileStatus</span>, <span class="ident">FileStatus</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">LegacyListenerHelper</span> {
@@ -581,7 +676,7 @@
     <span class="kw">fn</span> <span class="ident">add_listener</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">ptr</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">c</span>::<span class="ident">StatusListener</span>,
-        <span class="ident">event_source</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EventSource</span><span class="op">&lt;</span>(<span class="ident">c</span>::<span class="ident">Status</span>, <span class="ident">c</span>::<span class="ident">Status</span>)<span class="op">&gt;</span>,
+        <span class="ident">event_source</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EventSource</span><span class="op">&lt;</span>(<span class="ident">FileStatus</span>, <span class="ident">FileStatus</span>)<span class="op">&gt;</span>,
     ) {
         <span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">ptr</span>.<span class="ident">is_null</span>());
 
@@ -594,7 +689,7 @@
         <span class="kw">let</span> <span class="ident">ptr_wrapper</span> <span class="op">=</span> <span class="ident">LegacyStatusListener</span>::<span class="ident">new</span>(<span class="ident">ptr</span>);
 
         <span class="kw">let</span> <span class="ident">handle</span> <span class="op">=</span> <span class="ident">event_source</span>.<span class="ident">add_listener</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">status</span>, <span class="ident">changed</span>), <span class="ident">_event_queue</span><span class="op">|</span> <span class="kw">unsafe</span> {
-            <span class="ident">c</span>::<span class="ident">statuslistener_onStatusChanged</span>(<span class="ident">ptr_wrapper</span>.<span class="ident">ptr</span>(), <span class="ident">status</span>, <span class="ident">changed</span>)
+            <span class="ident">c</span>::<span class="ident">statuslistener_onStatusChanged</span>(<span class="ident">ptr_wrapper</span>.<span class="ident">ptr</span>(), <span class="ident">status</span>.<span class="ident">into</span>(), <span class="ident">changed</span>.<span class="ident">into</span>())
         });
 
         <span class="comment">// use a usize as the key so we don&#39;t accidentally deref the pointer</span>
@@ -610,7 +705,7 @@
 <span class="doccomment">/// A specified event source that passes a status and the changed bits to the function, but only if</span>
 <span class="doccomment">/// the monitored bits have changed and if the change the filter is satisfied.</span>
 <span class="kw">struct</span> <span class="ident">StatusEventSource</span> {
-    <span class="ident">inner</span>: <span class="ident">EventSource</span><span class="op">&lt;</span>(<span class="ident">c</span>::<span class="ident">Status</span>, <span class="ident">c</span>::<span class="ident">Status</span>)<span class="op">&gt;</span>,
+    <span class="ident">inner</span>: <span class="ident">EventSource</span><span class="op">&lt;</span>(<span class="ident">FileStatus</span>, <span class="ident">FileStatus</span>)<span class="op">&gt;</span>,
     <span class="ident">legacy_helper</span>: <span class="ident">LegacyListenerHelper</span>,
 }
 
@@ -624,17 +719,17 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_listener</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">monitoring</span>: <span class="ident">c</span>::<span class="ident">Status</span>,
+        <span class="ident">monitoring</span>: <span class="ident">FileStatus</span>,
         <span class="ident">filter</span>: <span class="ident">NewStatusListenerFilter</span>,
-        <span class="ident">notify_fn</span>: <span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">c</span>::<span class="ident">Status</span>, <span class="ident">c</span>::<span class="ident">Status</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EventQueue</span>) <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Handle</span><span class="op">&lt;</span>(<span class="ident">c</span>::<span class="ident">Status</span>, <span class="ident">c</span>::<span class="ident">Status</span>)<span class="op">&gt;</span> {
+        <span class="ident">notify_fn</span>: <span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">FileStatus</span>, <span class="ident">FileStatus</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EventQueue</span>) <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Handle</span><span class="op">&lt;</span>(<span class="ident">FileStatus</span>, <span class="ident">FileStatus</span>)<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">inner</span>
             .<span class="ident">add_listener</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">status</span>, <span class="ident">changed</span>), <span class="ident">event_queue</span><span class="op">|</span> {
                 <span class="comment">// true if any of the bits we&#39;re monitoring have changed</span>
-                <span class="kw">let</span> <span class="ident">flipped</span> <span class="op">=</span> <span class="ident">monitoring</span> <span class="op">&amp;</span> <span class="ident">changed</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span>;
+                <span class="kw">let</span> <span class="ident">flipped</span> <span class="op">=</span> <span class="ident">monitoring</span>.<span class="ident">intersects</span>(<span class="ident">changed</span>);
 
                 <span class="comment">// true if any of the bits we&#39;re monitoring are set</span>
-                <span class="kw">let</span> <span class="ident">on</span> <span class="op">=</span> <span class="ident">monitoring</span> <span class="op">&amp;</span> <span class="ident">status</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span>;
+                <span class="kw">let</span> <span class="ident">on</span> <span class="op">=</span> <span class="ident">monitoring</span>.<span class="ident">intersects</span>(<span class="ident">status</span>);
 
                 <span class="kw">let</span> <span class="ident">notify</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">filter</span> {
                     <span class="comment">// at least one monitored bit is on, and at least one has changed</span>
@@ -664,8 +759,8 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">notify_listeners</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">status</span>: <span class="ident">c</span>::<span class="ident">Status</span>,
-        <span class="ident">changed</span>: <span class="ident">c</span>::<span class="ident">Status</span>,
+        <span class="ident">status</span>: <span class="ident">FileStatus</span>,
+        <span class="ident">changed</span>: <span class="ident">FileStatus</span>,
         <span class="ident">event_queue</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EventQueue</span>,
     ) {
         <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">notify_listeners</span>((<span class="ident">status</span>, <span class="ident">changed</span>), <span class="ident">event_queue</span>)
@@ -694,7 +789,7 @@
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">status</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">c</span>::<span class="ident">Status</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">status</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FileStatus</span> {
         <span class="kw">match</span> <span class="self">self</span> {
             <span class="self">Self</span>::<span class="ident">Pipe</span>(<span class="ident">f</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">f</span>.<span class="ident">status</span>(),
         }
@@ -783,7 +878,6 @@
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 
     <span class="doccomment">/// An opaque type used when passing `*const AtomicRefCell&lt;File&gt;` to C.</span>
-    <span class="attribute">#[<span class="ident">no_mangle</span>]</span>
     <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">PosixFileArc</span> {}
 
     <span class="doccomment">/// The new compat descriptor takes ownership of the reference to the legacy descriptor and</span>
@@ -899,7 +993,7 @@
         <span class="kw">let</span> <span class="ident">file</span> <span class="op">=</span> <span class="ident">file</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">AtomicRefCell</span><span class="op">&lt;</span><span class="ident">PosixFile</span><span class="op">&gt;</span>;
         <span class="kw">let</span> <span class="ident">file</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">file</span> };
 
-        <span class="ident">file</span>.<span class="ident">borrow</span>().<span class="ident">status</span>()
+        <span class="ident">file</span>.<span class="ident">borrow</span>().<span class="ident">status</span>().<span class="ident">into</span>()
     }
 
     <span class="doccomment">/// Add a status listener to the posix file object. This will increment the status</span>

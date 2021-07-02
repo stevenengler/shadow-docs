@@ -28,7 +28,7 @@ jobs:
         rm -rf pages/docs
         mkdir pages/docs
         mv shadow/src/main/target/doc pages/docs/rust
-        echo '<meta http-equiv="refresh" content="0; url=/docs/rust/shadow_rs/">' > pages/docs/rust/index.html
+        echo '<meta http-equiv="refresh" content="0; url=/shadow-docs/rust/shadow_rs/">' > pages/docs/rust/index.html
     - name: Commit
       run: |
         COMMIT="$(cd shadow && git rev-parse --short HEAD)"

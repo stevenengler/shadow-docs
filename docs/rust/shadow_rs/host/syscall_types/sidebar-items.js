@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["SyscallError",""]],"struct":[["PluginPtr",""],["TypedPluginPtr","Wrapper around a PluginPtr that encapsulates its type, size, and current position."]],"type":[["SysCallArgs",""],["SysCallReg",""],["SyscallResult",""]]});
